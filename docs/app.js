@@ -900,18 +900,18 @@ function parseListItems(html) {
 
         if (linkMatch) {
             const url = linkMatch[1];
-            const title = linkMatch[2].trim();
+            const title = unescapeHTML(linkMatch[2].trim());
 
             // Extract test date
             const dateRegex = /\(test date:\s*([^\)]+)\)/i;
             const dateMatch = content.match(dateRegex);
-            const testDate = dateMatch ? dateMatch[1].trim() : '';
+            const testDate = dateMatch ? unescapeHTML(dateMatch[1].trim()) : '';
 
             // Extract description (after date, starting with –)
             // Use [\s\S] to match content across lines
             const descRegex = /\)\s*–\s*([\s\S]+)$/i;
             const descMatch = content.match(descRegex);
-            const description = descMatch ? descMatch[1].trim() : '';
+            const description = descMatch ? unescapeHTML(descMatch[1].trim()) : '';
 
             items.push({
                 id: fileId,
@@ -941,18 +941,18 @@ function parseListItems(html) {
 
         if (linkMatch) {
             const url = linkMatch[1];
-            const title = linkMatch[2].trim();
+            const title = unescapeHTML(linkMatch[2].trim());
 
             // Extract test date
             const dateRegex = /\(test date:\s*([^\)]+)\)/i;
             const dateMatch = content.match(dateRegex);
-            const testDate = dateMatch ? dateMatch[1].trim() : '';
+            const testDate = dateMatch ? unescapeHTML(dateMatch[1].trim()) : '';
 
             // Extract description (after date, starting with –)
             // Use [\s\S] to match content across lines
             const descRegex = /\)\s*–\s*([\s\S]+)$/i;
             const descMatch = content.match(descRegex);
-            const description = descMatch ? descMatch[1].trim() : '';
+            const description = descMatch ? unescapeHTML(descMatch[1].trim()) : '';
 
             // Generate a pseudo-ID from the URL for manually added items
             const pseudoId = 'manual-' + btoa(url).substring(0, 20);
@@ -1225,6 +1225,12 @@ function escapeHTML(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+function unescapeHTML(str) {
+    const div = document.createElement('div');
+    div.innerHTML = str;
+    return div.textContent;
 }
 
 function showStatus(type, message) {
