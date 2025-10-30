@@ -300,6 +300,11 @@ async function handleAddCOA() {
         await generateQRCode(uploadedFile.url, title);
 
         showStatus('success', `Uploaded '${title}' and updated COA list. QR code downloaded!`);
+
+        // Refresh file list to prevent stale state
+        await loadExistingFiles('existingFileSelect');
+        await loadExistingFiles('deleteFileSelect');
+
         clearForm();
         document.getElementById('actionSelect').value = '';
         handleActionChange({ target: { value: '' } });
@@ -386,6 +391,10 @@ async function handleModifyCOA() {
             showStatus('success', `Updated '${title}' successfully.`);
         }
 
+        // Refresh file list to prevent stale state
+        await loadExistingFiles('existingFileSelect');
+        await loadExistingFiles('deleteFileSelect');
+
         clearForm();
         document.getElementById('actionSelect').value = '';
         handleActionChange({ target: { value: '' } });
@@ -430,6 +439,11 @@ async function handleSubmitDelete() {
         });
 
         showStatus('success', `Deleted '${file.title}' from Shopify and page.`);
+
+        // Refresh file list to prevent stale state
+        await loadExistingFiles('existingFileSelect');
+        await loadExistingFiles('deleteFileSelect');
+
         clearForm();
         document.getElementById('actionSelect').value = '';
         handleActionChange({ target: { value: '' } });
