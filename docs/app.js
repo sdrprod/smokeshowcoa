@@ -886,7 +886,8 @@ function parseListItems(html) {
     const items = [];
 
     // Try to match items WITH data-file-id first
-    const liWithIdRegex = /<li[^>]*data-file-id="([^"]*)"[^>]*>(.*?)<\/li>/gi;
+    // Use [\s\S] instead of . to match newlines
+    const liWithIdRegex = /<li[^>]*data-file-id="([^"]*)"[^>]*>([\s\S]*?)<\/li>/gi;
     let match;
 
     while ((match = liWithIdRegex.exec(html)) !== null) {
@@ -894,7 +895,7 @@ function parseListItems(html) {
         const content = match[2];
 
         // Extract URL and title from <a> tag
-        const linkRegex = /<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/i;
+        const linkRegex = /<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i;
         const linkMatch = content.match(linkRegex);
 
         if (linkMatch) {
@@ -907,7 +908,8 @@ function parseListItems(html) {
             const testDate = dateMatch ? dateMatch[1].trim() : '';
 
             // Extract description (after date, starting with –)
-            const descRegex = /\)\s*–\s*(.+)$/i;
+            // Use [\s\S] to match content across lines
+            const descRegex = /\)\s*–\s*([\s\S]+)$/i;
             const descMatch = content.match(descRegex);
             const description = descMatch ? descMatch[1].trim() : '';
 
@@ -923,7 +925,8 @@ function parseListItems(html) {
 
     // Also match items WITHOUT data-file-id (manually added)
     // Extract all <li> items and skip ones we already have
-    const allLiRegex = /<li[^>]*>(.*?)<\/li>/gi;
+    // Use [\s\S] instead of . to match newlines
+    const allLiRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
     const existingIds = new Set(items.map(item => item.id));
 
     html.replace(allLiRegex, (fullMatch, content) => {
@@ -933,7 +936,7 @@ function parseListItems(html) {
         }
 
         // Extract URL and title from <a> tag
-        const linkRegex = /<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/i;
+        const linkRegex = /<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/i;
         const linkMatch = content.match(linkRegex);
 
         if (linkMatch) {
@@ -946,7 +949,8 @@ function parseListItems(html) {
             const testDate = dateMatch ? dateMatch[1].trim() : '';
 
             // Extract description (after date, starting with –)
-            const descRegex = /\)\s*–\s*(.+)$/i;
+            // Use [\s\S] to match content across lines
+            const descRegex = /\)\s*–\s*([\s\S]+)$/i;
             const descMatch = content.match(descRegex);
             const description = descMatch ? descMatch[1].trim() : '';
 
