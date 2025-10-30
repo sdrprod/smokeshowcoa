@@ -63,6 +63,7 @@ function attachEventListeners() {
     document.getElementById('coaDescription').addEventListener('input', updateCharCount);
     document.getElementById('deleteConfirm').addEventListener('change', handleDeleteConfirmChange);
     document.getElementById('existingFileSelect').addEventListener('change', handleExistingFileSelect);
+    document.getElementById('deleteFileSelect').addEventListener('change', handleDeleteFileSelect);
 
     // Submit buttons
     document.getElementById('submitAction').addEventListener('click', handleSubmitAction);
@@ -165,7 +166,11 @@ function handleActionChange(e) {
     // Hide all forms
     addModifyForm.style.display = 'none';
     deleteForm.style.display = 'none';
-    if (qrPreview) qrPreview.style.display = 'none';
+    // Only hide QR preview when user is changing actions, not when resetting after success
+    // (QR preview should remain visible after successful operations)
+    if (action !== '' && qrPreview) {
+        qrPreview.style.display = 'none';
+    }
 
     if (action === 'add') {
         addModifyForm.style.display = 'block';
@@ -188,9 +193,14 @@ function handleActionChange(e) {
     }
 }
 
-function handleExistingFileSelect(e) {
+async function handleExistingFileSelect(e) {
     const fileId = e.target.value;
-    if (!fileId) return;
+    if (!fileId) {
+        // If no file selected, hide QR preview
+        const qrPreview = document.getElementById('qrPreview');
+        if (qrPreview) qrPreview.style.display = 'none';
+        return;
+    }
 
     const file = state.existingFiles.find(f => f.id === fileId);
     if (file) {
@@ -198,6 +208,29 @@ function handleExistingFileSelect(e) {
         document.getElementById('testDate').value = file.testDate || '';
         document.getElementById('coaDescription').value = file.description || '';
         updateCharCount();
+
+        // Generate and display QR code for the selected file
+        if (file.url) {
+            await generateQRCode(file.url, file.title);
+        }
+    }
+}
+
+async function handleDeleteFileSelect(e) {
+    const fileId = e.target.value;
+    if (!fileId) {
+        // If no file selected, hide QR preview
+        const qrPreview = document.getElementById('qrPreview');
+        if (qrPreview) qrPreview.style.display = 'none';
+        return;
+    }
+
+    const file = state.existingFiles.find(f => f.id === fileId);
+    if (file) {
+        // Generate and display QR code for the selected file
+        if (file.url) {
+            await generateQRCode(file.url, file.title);
+        }
     }
 }
 
