@@ -998,10 +998,21 @@ function generateListHTML(items) {
 // ============================================================================
 
 async function generateQRCode(url, title) {
+    console.log('=== QR Code Generation Started ===');
+    console.log('URL:', url);
+    console.log('Title:', title);
+    console.log('QRCode library available:', typeof QRCode !== 'undefined');
+
     try {
-        // Generate QR code using QRCode library
+        // Check if QRCode library is loaded
+        if (typeof QRCode === 'undefined') {
+            throw new Error('QRCode library not loaded. Please refresh the page.');
+        }
+
+        console.log('Creating canvas element...');
         const canvas = document.createElement('canvas');
 
+        console.log('Generating QR code...');
         await QRCode.toCanvas(canvas, url, {
             width: CONFIG.QR_SIZE,
             margin: 2,
@@ -1010,25 +1021,35 @@ async function generateQRCode(url, title) {
                 light: '#FFFFFF'
             }
         });
+        console.log('QR code generated successfully');
 
         // Convert canvas to blob
+        console.log('Converting to blob...');
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        console.log('Blob created:', blob);
 
         // Create filename
         const filename = `${sanitizeFilename(title)}_QR.png`;
+        console.log('Filename:', filename);
 
         // Download the QR code
+        console.log('Starting download...');
         const downloadUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = downloadUrl;
         a.download = filename;
         document.body.appendChild(a);
         a.click();
+        console.log('Download triggered');
         document.body.removeChild(a);
-        URL.revokeObjectURL(downloadUrl);
+
+        // Small delay before revoking URL
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
 
         // Show preview
+        console.log('Showing QR preview...');
         showQRPreview(canvas, title);
+        console.log('=== QR Code Generation Complete ===');
 
         // Store for later reference
         state.lastQRCode = {
@@ -1040,17 +1061,23 @@ async function generateQRCode(url, title) {
         return true;
 
     } catch (error) {
-        console.error('QR Code generation error:', error);
-        showStatus('warning', `COA uploaded successfully, but QR code generation failed: ${error.message}`);
+        console.error('=== QR Code Generation Failed ===');
+        console.error('Error:', error);
+        console.error('Stack:', error.stack);
+        showStatus('error', `QR code generation failed: ${error.message}. Check browser console for details.`);
         return false;
     }
 }
 
 function showQRPreview(canvas, title) {
+    console.log('showQRPreview called with title:', title);
+    console.log('Canvas:', canvas);
+
     // Check if preview section exists, create if not
     let previewSection = document.getElementById('qrPreview');
 
     if (!previewSection) {
+        console.log('Creating new QR preview section');
         // Create preview section
         previewSection = document.createElement('div');
         previewSection.id = 'qrPreview';
@@ -1058,12 +1085,21 @@ function showQRPreview(canvas, title) {
 
         // Insert after status area to make it more visible
         const statusArea = document.getElementById('statusArea');
-        statusArea.parentNode.insertBefore(previewSection, statusArea.nextSibling);
+        if (statusArea && statusArea.parentNode) {
+            statusArea.parentNode.insertBefore(previewSection, statusArea.nextSibling);
+            console.log('QR preview section inserted into DOM');
+        } else {
+            console.error('Could not find statusArea to insert QR preview');
+            return;
+        }
+    } else {
+        console.log('Using existing QR preview section');
     }
 
     // Get the data URL for download
     const dataURL = canvas.toDataURL('image/png');
     const filename = `${sanitizeFilename(title)}_QR.png`;
+    console.log('Generated filename:', filename);
 
     // Update preview content with download button
     previewSection.innerHTML = `
@@ -1100,9 +1136,13 @@ function showQRPreview(canvas, title) {
     `;
 
     previewSection.style.display = 'block';
+    console.log('QR preview section made visible');
 
     // Scroll to the QR preview
-    previewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => {
+        previewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        console.log('Scrolled to QR preview');
+    }, 100);
 }
 
 function sanitizeFilename(filename) {
