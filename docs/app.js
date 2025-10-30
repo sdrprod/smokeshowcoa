@@ -559,10 +559,38 @@ async function loadExistingFiles(selectId) {
                 filename: filename,
                 url: file.url,
                 createdAt: file.createdAt,
-                testDate: '', // Will be extracted from page if available
+                testDate: '', // Will be extracted from page below
                 description: ''
             };
         });
+
+        // Extract testDate and description from COA page HTML
+        try {
+            const pageData = await makeRESTRequest(`pages/${CONFIG.PAGE_ID}.json`);
+            const currentHTML = pageData.page.body_html;
+
+            const startMarker = '<!-- COA-LIST-START -->';
+            const endMarker = '<!-- COA-LIST-END -->';
+            const startIdx = currentHTML.indexOf(startMarker);
+            const endIdx = currentHTML.indexOf(endMarker);
+
+            if (startIdx !== -1 && endIdx !== -1) {
+                const listSection = currentHTML.substring(startIdx + startMarker.length, endIdx);
+                const listItems = parseListItems(listSection);
+
+                // Match parsed items to existing files by URL
+                state.existingFiles.forEach(file => {
+                    const matchedItem = listItems.find(item => item.url === file.url);
+                    if (matchedItem) {
+                        file.testDate = matchedItem.testDate || '';
+                        file.description = matchedItem.description || '';
+                    }
+                });
+            }
+        } catch (error) {
+            console.warn('Could not extract dates/descriptions from page:', error);
+            // Continue anyway - files will just have empty dates/descriptions
+        }
 
         // Sort alphabetically
         state.existingFiles.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
