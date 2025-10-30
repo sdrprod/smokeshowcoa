@@ -997,6 +997,26 @@ function generateListHTML(items) {
 // QR CODE GENERATION
 // ============================================================================
 
+// Helper function to wait for QRCode library to load
+async function waitForQRCodeLibrary(maxWaitMs = 5000) {
+    const startTime = Date.now();
+
+    while (typeof QRCode === 'undefined') {
+        // Check if load explicitly failed
+        if (window.QRCodeLoadFailed) {
+            throw new Error('QRCode library failed to load from all CDN sources. Please check your internet connection and refresh the page.');
+        }
+
+        if (Date.now() - startTime > maxWaitMs) {
+            throw new Error('QRCode library failed to load after ' + maxWaitMs + 'ms. Please check your internet connection and refresh the page.');
+        }
+        // Wait 100ms before checking again
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    return true;
+}
+
 async function generateQRCode(url, title) {
     console.log('=== QR Code Generation Started ===');
     console.log('URL:', url);
@@ -1004,9 +1024,11 @@ async function generateQRCode(url, title) {
     console.log('QRCode library available:', typeof QRCode !== 'undefined');
 
     try {
-        // Check if QRCode library is loaded
+        // Wait for QRCode library to load (with timeout)
         if (typeof QRCode === 'undefined') {
-            throw new Error('QRCode library not loaded. Please refresh the page.');
+            console.log('QRCode library not yet loaded, waiting...');
+            await waitForQRCodeLibrary(5000);
+            console.log('QRCode library loaded successfully after waiting');
         }
 
         console.log('Creating canvas element...');
