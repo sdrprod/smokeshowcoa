@@ -318,7 +318,7 @@ async function handleModifyCOA() {
 
     // Validation
     if (!fileId) {
-        showStatus('error', 'Please select a COA to modify.');
+        showStatus('error', 'Please select a COA to replace.');
         return;
     }
 
@@ -393,7 +393,7 @@ async function handleModifyCOA() {
         handleActionChange({ target: { value: '' } });
 
     } catch (error) {
-        showStatus('error', `Failed to modify COA: ${error.message}`);
+        showStatus('error', `Failed to replace COA: ${error.message}`);
     }
 }
 
@@ -489,7 +489,6 @@ async function loadExistingFiles(selectId) {
                                 url
                                 originalFileSize
                                 mimeType
-                                originalFileName
                             }
                         }
                     }
@@ -505,15 +504,20 @@ async function loadExistingFiles(selectId) {
             (file.url && file.url.toLowerCase().endsWith('.pdf'))
         );
 
-        state.existingFiles = pdfFiles.map(file => ({
-            id: file.id,
-            title: file.alt || file.originalFileName || 'Untitled',
-            filename: file.originalFileName || '',
-            url: file.url,
-            createdAt: file.createdAt,
-            testDate: '', // Will be extracted from page if available
-            description: ''
-        }));
+        state.existingFiles = pdfFiles.map(file => {
+            // Extract filename from URL
+            const filename = file.url ? extractFilenameFromURL(file.url) : '';
+
+            return {
+                id: file.id,
+                title: file.alt || filename || 'Untitled',
+                filename: filename,
+                url: file.url,
+                createdAt: file.createdAt,
+                testDate: '', // Will be extracted from page if available
+                description: ''
+            };
+        });
 
         // Sort alphabetically
         state.existingFiles.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
@@ -990,6 +994,21 @@ function sanitizeFilename(filename) {
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
+
+function extractFilenameFromURL(url) {
+    try {
+        // Extract filename from URL path
+        // e.g., "https://cdn.shopify.com/.../files/BlackAmber_COA.pdf" -> "BlackAmber_COA.pdf"
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname;
+        const filename = pathname.substring(pathname.lastIndexOf('/') + 1);
+        // Decode URL encoding (e.g., %20 -> space)
+        return decodeURIComponent(filename);
+    } catch (error) {
+        console.error('Error extracting filename from URL:', error);
+        return '';
+    }
+}
 
 function isValidDate(dateString) {
     const regex = /^\d{4}-\d{2}-\d{2}$/;
