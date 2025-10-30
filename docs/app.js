@@ -1,5 +1,5 @@
 // Shopify COA Manager - Main Application Logic
-// Version 1.0
+// Version 2.0 - With Netlify Proxy & QR Code Generation
 
 // ============================================================================
 // CONFIGURATION & STATE
@@ -10,14 +10,20 @@ const CONFIG = {
     PUBLIC_COA_URL: 'https://smokeshowlabs.com/pages/certificates-of-analysis-independent-lab-results',
     MAX_RETRIES: 3,
     RETRY_DELAYS: [1000, 2000, 4000], // Exponential backoff
-    MAX_DESCRIPTION_LENGTH: 220
+    MAX_DESCRIPTION_LENGTH: 220,
+    QR_SIZE: 512, // QR code size in pixels
+    // API endpoints - will use Netlify functions
+    API_GRAPHQL: '/api/graphql',
+    API_REST: '/api/rest',
+    API_UPLOAD: '/api/upload'
 };
 
 let state = {
     domain: '',
     token: '',
     isConnected: false,
-    existingFiles: []
+    existingFiles: [],
+    lastQRCode: null // Store last generated QR code
 };
 
 // ============================================================================
@@ -131,10 +137,12 @@ function handleActionChange(e) {
     const fileSelectSection = document.getElementById('fileSelectSection');
     const fileUploadLabel = document.getElementById('fileUploadLabel');
     const fileRequired = document.getElementById('fileRequired');
+    const qrPreview = document.getElementById('qrPreview');
 
     // Hide all forms
     addModifyForm.style.display = 'none';
     deleteForm.style.display = 'none';
+    if (qrPreview) qrPreview.style.display = 'none';
 
     if (action === 'add') {
         addModifyForm.style.display = 'block';
@@ -187,6 +195,10 @@ function clearForm() {
     document.getElementById('coaFile').value = '';
     document.getElementById('deleteConfirm').checked = false;
     updateCharCount();
+
+    // Hide QR preview
+    const qrPreview = document.getElementById('qrPreview');
+    if (qrPreview) qrPreview.style.display = 'none';
 }
 
 // ============================================================================
@@ -259,7 +271,12 @@ async function handleAddCOA() {
             description: description
         });
 
-        showStatus('success', `Uploaded '${title}' and updated COA list.`);
+        showStatus('info', 'Generating QR code...');
+
+        // Generate and download QR code
+        await generateQRCode(uploadedFile.url, title);
+
+        showStatus('success', `Uploaded '${title}' and updated COA list. QR code downloaded!`);
         clearForm();
         document.getElementById('actionSelect').value = '';
         handleActionChange({ target: { value: '' } });
@@ -311,6 +328,7 @@ async function handleModifyCOA() {
 
     try {
         let newUrl = existingFile.url;
+        let fileWasReplaced = false;
 
         // If new file is provided, upload it
         if (fileInput.files && fileInput.files.length > 0) {
@@ -323,6 +341,7 @@ async function handleModifyCOA() {
             showStatus('info', 'Uploading replacement file...');
             const uploadedFile = await replaceFile(fileId, file, title);
             newUrl = uploadedFile.url;
+            fileWasReplaced = true;
         }
 
         showStatus('info', 'Updating COA page...');
@@ -337,7 +356,15 @@ async function handleModifyCOA() {
             description: description
         });
 
-        showStatus('success', `Updated '${title}' successfully.`);
+        // Only generate new QR if file was replaced (not for metadata-only updates)
+        if (fileWasReplaced) {
+            showStatus('info', 'Generating QR code for new file...');
+            await generateQRCode(newUrl, title);
+            showStatus('success', `Updated '${title}' successfully. New QR code downloaded!`);
+        } else {
+            showStatus('success', `Updated '${title}' successfully.`);
+        }
+
         clearForm();
         document.getElementById('actionSelect').value = '';
         handleActionChange({ target: { value: '' } });
@@ -392,19 +419,21 @@ async function handleSubmitDelete() {
 }
 
 // ============================================================================
-// SHOPIFY API - GRAPHQL (FILES)
+// SHOPIFY API - GRAPHQL (via Netlify Proxy)
 // ============================================================================
 
 async function makeGraphQLRequest(query, variables = {}) {
-    const url = `https://${state.domain}/admin/api/2024-10/graphql.json`;
-
-    const response = await fetch(url, {
+    const response = await fetch(CONFIG.API_GRAPHQL, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'X-Shopify-Access-Token': state.token
+            'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ query, variables })
+        body: JSON.stringify({
+            domain: state.domain,
+            token: state.token,
+            query,
+            variables
+        })
     });
 
     if (!response.ok) {
@@ -511,7 +540,7 @@ async function uploadFile(file, altText) {
 
     const stagedTarget = stagedUploadResult.data.stagedUploadsCreate.stagedTargets[0];
 
-    // Step 2: Upload file to staged URL
+    // Step 2: Upload file to staged URL (directly, not through proxy)
     const formData = new FormData();
     stagedTarget.parameters.forEach(param => {
         formData.append(param.name, param.value);
@@ -591,7 +620,7 @@ async function replaceFile(fileId, newFile, altText) {
 
     const stagedTarget = stagedUploadResult.data.stagedUploadsCreate.stagedTargets[0];
 
-    // Upload the new file
+    // Upload the new file (directly, not through proxy)
     const formData = new FormData();
     stagedTarget.parameters.forEach(param => {
         formData.append(param.name, param.value);
@@ -662,25 +691,23 @@ async function deleteFile(fileId) {
 }
 
 // ============================================================================
-// SHOPIFY API - REST (PAGES)
+// SHOPIFY API - REST (via Netlify Proxy)
 // ============================================================================
 
 async function makeRESTRequest(endpoint, method = 'GET', body = null) {
-    const url = `https://${state.domain}/admin/api/2024-10/${endpoint}`;
-
-    const options = {
-        method: method,
+    const response = await fetch(CONFIG.API_REST, {
+        method: 'POST', // Always POST to the proxy
         headers: {
-            'Content-Type': 'application/json',
-            'X-Shopify-Access-Token': state.token
-        }
-    };
-
-    if (body) {
-        options.body = JSON.stringify(body);
-    }
-
-    const response = await fetch(url, options);
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            domain: state.domain,
+            token: state.token,
+            endpoint,
+            method,
+            body
+        })
+    });
 
     if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -829,6 +856,101 @@ function generateListHTML(items) {
 
     html += '</ul>';
     return html;
+}
+
+// ============================================================================
+// QR CODE GENERATION
+// ============================================================================
+
+async function generateQRCode(url, title) {
+    try {
+        // Generate QR code using QRCode library
+        const canvas = document.createElement('canvas');
+
+        await QRCode.toCanvas(canvas, url, {
+            width: CONFIG.QR_SIZE,
+            margin: 2,
+            color: {
+                dark: '#000000',
+                light: '#FFFFFF'
+            }
+        });
+
+        // Convert canvas to blob
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+
+        // Create filename
+        const filename = `${sanitizeFilename(title)}_QR.png`;
+
+        // Download the QR code
+        const downloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(downloadUrl);
+
+        // Show preview
+        showQRPreview(canvas, title);
+
+        // Store for later reference
+        state.lastQRCode = {
+            url,
+            title,
+            dataURL: canvas.toDataURL('image/png')
+        };
+
+        return true;
+
+    } catch (error) {
+        console.error('QR Code generation error:', error);
+        showStatus('warning', `COA uploaded successfully, but QR code generation failed: ${error.message}`);
+        return false;
+    }
+}
+
+function showQRPreview(canvas, title) {
+    // Check if preview section exists, create if not
+    let previewSection = document.getElementById('qrPreview');
+
+    if (!previewSection) {
+        // Create preview section
+        previewSection = document.createElement('div');
+        previewSection.id = 'qrPreview';
+        previewSection.className = 'bg-white rounded-lg shadow-md p-6 mb-6';
+
+        // Insert after main section
+        const mainSection = document.getElementById('mainSection');
+        mainSection.parentNode.insertBefore(previewSection, mainSection.nextSibling);
+    }
+
+    // Update preview content
+    previewSection.innerHTML = `
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">QR Code Generated</h2>
+        <div class="flex flex-col items-center gap-4">
+            <div class="border-2 border-gray-300 rounded-lg p-4 bg-white">
+                ${canvas.outerHTML}
+            </div>
+            <p class="text-sm text-gray-600">
+                QR code for <strong>${escapeHTML(title)}</strong> has been downloaded as <code>${sanitizeFilename(title)}_QR.png</code>
+            </p>
+            <p class="text-xs text-gray-500">
+                Scan this QR code with a smartphone to open the PDF directly.
+            </p>
+        </div>
+    `;
+
+    previewSection.style.display = 'block';
+}
+
+function sanitizeFilename(filename) {
+    // Remove or replace characters not suitable for filenames
+    return filename
+        .replace(/[^a-z0-9]/gi, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
 }
 
 // ============================================================================

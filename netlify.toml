@@ -1,0 +1,36 @@
+# Netlify Configuration for Shopify COA Manager
+
+[build]
+  # Publish the docs directory
+  publish = "docs"
+
+  # No build command needed - static site
+  command = ""
+
+[functions]
+  # Directory for serverless functions
+  directory = "netlify/functions"
+
+# Redirect rules (optional - for cleaner URLs)
+[[redirects]]
+  from = "/api/graphql"
+  to = "/.netlify/functions/shopify-graphql"
+  status = 200
+
+[[redirects]]
+  from = "/api/rest"
+  to = "/.netlify/functions/shopify-rest"
+  status = 200
+
+[[redirects]]
+  from = "/api/upload"
+  to = "/.netlify/functions/upload-file"
+  status = 200
+
+# Headers for CORS
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
