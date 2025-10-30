@@ -333,11 +333,9 @@ async function handleModifyCOA() {
         return;
     }
 
-    // Check for duplicate title (excluding current file)
-    if (state.existingFiles.some(f => f.id !== fileId && f.title.toLowerCase() === title.toLowerCase())) {
-        showStatus('error', 'A COA with this title already exists. Please use a different title.');
-        return;
-    }
+    // Note: When replacing, we intentionally allow using the same title.
+    // Users typically replace a file with an updated version of the same document.
+    // The updated date will indicate to clients that the document has been updated.
 
     if (testDate && !isValidDate(testDate)) {
         showStatus('error', 'Invalid date format. Use YYYY-MM-DD.');
