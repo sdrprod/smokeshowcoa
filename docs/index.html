@@ -5,27 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Shopify COA Manager - Smoke Show Labs</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- QRCode.js library fallback handler - MUST be defined before script tags -->
-    <script>
-        function loadQRCodeFallback() {
-            console.warn('Primary QRCode CDN failed, trying fallback...');
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js';
-            script.onerror = function() {
-                console.error('Both QRCode CDNs failed. QR code generation will not work.');
-                window.QRCodeLoadFailed = true;
-            };
-            script.onload = function() {
-                console.log('QRCode library loaded from fallback CDN (unpkg)');
-            };
-            document.head.appendChild(script);
-        }
-    </script>
-    <!-- QRCode.js library - use cdnjs as primary (most reliable) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"
-            integrity="sha512-TgOfn04yF3VKV+dKyDaj9pgWG1T3b5m+t8X7Ktlr5UYmrWZpRuK9AzJ6LpJvFtDEi15bYCdJGP7V2cV1xFZfCw=="
-            crossorigin="anonymous"
-            onerror="loadQRCodeFallback()"></script>
+    <!-- No external QR libraries needed - using API instead! -->
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;

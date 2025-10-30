@@ -1009,61 +1009,27 @@ function generateListHTML(items) {
 }
 
 // ============================================================================
-// QR CODE GENERATION
+// QR CODE GENERATION (using API - no library needed)
 // ============================================================================
-
-// Helper function to wait for QRCode library to load
-async function waitForQRCodeLibrary(maxWaitMs = 5000) {
-    const startTime = Date.now();
-
-    while (typeof QRCode === 'undefined') {
-        // Check if load explicitly failed
-        if (window.QRCodeLoadFailed) {
-            throw new Error('QRCode library failed to load from all CDN sources. Please check your internet connection and refresh the page.');
-        }
-
-        if (Date.now() - startTime > maxWaitMs) {
-            throw new Error('QRCode library failed to load after ' + maxWaitMs + 'ms. Please check your internet connection and refresh the page.');
-        }
-        // Wait 100ms before checking again
-        await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    return true;
-}
 
 async function generateQRCode(url, title) {
     console.log('=== QR Code Generation Started ===');
     console.log('URL:', url);
     console.log('Title:', title);
-    console.log('QRCode library available:', typeof QRCode !== 'undefined');
 
     try {
-        // Wait for QRCode library to load (with timeout)
-        if (typeof QRCode === 'undefined') {
-            console.log('QRCode library not yet loaded, waiting...');
-            await waitForQRCodeLibrary(5000);
-            console.log('QRCode library loaded successfully after waiting');
+        // Use QR Server API to generate QR code (no library needed!)
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${CONFIG.QR_SIZE}x${CONFIG.QR_SIZE}&format=png&data=${encodeURIComponent(url)}`;
+
+        console.log('Fetching QR code from API...');
+        const response = await fetch(qrApiUrl);
+
+        if (!response.ok) {
+            throw new Error('QR code API request failed');
         }
 
-        console.log('Creating canvas element...');
-        const canvas = document.createElement('canvas');
-
-        console.log('Generating QR code...');
-        await QRCode.toCanvas(canvas, url, {
-            width: CONFIG.QR_SIZE,
-            margin: 2,
-            color: {
-                dark: '#000000',
-                light: '#FFFFFF'
-            }
-        });
-        console.log('QR code generated successfully');
-
-        // Convert canvas to blob
-        console.log('Converting to blob...');
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        console.log('Blob created:', blob);
+        const blob = await response.blob();
+        console.log('QR code blob received:', blob.size, 'bytes');
 
         // Create filename
         const filename = `${sanitizeFilename(title)}_QR.png`;
@@ -1080,20 +1046,24 @@ async function generateQRCode(url, title) {
         console.log('Download triggered');
         document.body.removeChild(a);
 
-        // Small delay before revoking URL
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+        // Create a separate blob URL for preview (don't revoke the download one yet)
+        const previewUrl = URL.createObjectURL(blob);
 
         // Show preview
         console.log('Showing QR preview...');
-        showQRPreview(canvas, title);
+        showQRPreview(previewUrl, qrApiUrl, title, filename);
         console.log('=== QR Code Generation Complete ===');
 
         // Store for later reference
         state.lastQRCode = {
             url,
             title,
-            dataURL: canvas.toDataURL('image/png')
+            imageUrl: qrApiUrl,
+            filename
         };
+
+        // Revoke download URL after delay
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
 
         return true;
 
@@ -1106,9 +1076,9 @@ async function generateQRCode(url, title) {
     }
 }
 
-function showQRPreview(canvas, title) {
+function showQRPreview(imageUrl, apiUrl, title, filename) {
     console.log('showQRPreview called with title:', title);
-    console.log('Canvas:', canvas);
+    console.log('Image URL:', imageUrl);
 
     // Check if preview section exists, create if not
     let previewSection = document.getElementById('qrPreview');
@@ -1133,9 +1103,6 @@ function showQRPreview(canvas, title) {
         console.log('Using existing QR preview section');
     }
 
-    // Get the data URL for download
-    const dataURL = canvas.toDataURL('image/png');
-    const filename = `${sanitizeFilename(title)}_QR.png`;
     console.log('Generated filename:', filename);
 
     // Update preview content with download button
@@ -1143,7 +1110,7 @@ function showQRPreview(canvas, title) {
         <h2 class="text-xl font-semibold text-gray-900 mb-4">✅ QR Code Generated</h2>
         <div class="flex flex-col md:flex-row gap-6 items-center">
             <div class="border-2 border-gray-300 rounded-lg p-4 bg-white shadow-sm">
-                ${canvas.outerHTML}
+                <img src="${imageUrl}" alt="QR Code for ${escapeHTML(title)}" width="${CONFIG.QR_SIZE}" height="${CONFIG.QR_SIZE}" />
             </div>
             <div class="flex-1 space-y-4">
                 <div>
@@ -1159,7 +1126,7 @@ function showQRPreview(canvas, title) {
                 </div>
                 <div class="pt-2">
                     <button
-                        onclick="downloadQRCode('${dataURL.replace(/'/g, "\\'")}', '${filename.replace(/'/g, "\\'")}');"
+                        onclick="downloadQRCodeFromUrl('${apiUrl.replace(/'/g, "\\'")}', '${filename.replace(/'/g, "\\'")}');"
                         class="w-full px-6 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 font-medium transition text-base"
                     >
                         📥 Download QR Code Again
@@ -1190,8 +1157,29 @@ function sanitizeFilename(filename) {
         .replace(/^_|_$/g, '');
 }
 
+async function downloadQRCodeFromUrl(apiUrl, filename) {
+    // Download QR code from API URL
+    try {
+        const response = await fetch(apiUrl);
+        const blob = await response.blob();
+        const downloadUrl = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+    } catch (error) {
+        console.error('Download failed:', error);
+        showStatus('error', 'Failed to download QR code. Please try again.');
+    }
+}
+
 function downloadQRCode(dataURL, filename) {
-    // Manual download function for QR code
+    // Manual download function for QR code (legacy)
     const a = document.createElement('a');
     a.href = dataURL;
     a.download = filename;
