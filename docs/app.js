@@ -825,10 +825,12 @@ async function updateCOAPage(action, coaData) {
 
 function parseListItems(html) {
     const items = [];
-    const liRegex = /<li[^>]*data-file-id="([^"]*)"[^>]*>(.*?)<\/li>/gi;
+
+    // Try to match items WITH data-file-id first
+    const liWithIdRegex = /<li[^>]*data-file-id="([^"]*)"[^>]*>(.*?)<\/li>/gi;
     let match;
 
-    while ((match = liRegex.exec(html)) !== null) {
+    while ((match = liWithIdRegex.exec(html)) !== null) {
         const fileId = match[1];
         const content = match[2];
 
@@ -860,6 +862,51 @@ function parseListItems(html) {
         }
     }
 
+    // Also match items WITHOUT data-file-id (manually added)
+    // Extract all <li> items and skip ones we already have
+    const allLiRegex = /<li[^>]*>(.*?)<\/li>/gi;
+    const existingIds = new Set(items.map(item => item.id));
+
+    html.replace(allLiRegex, (fullMatch, content) => {
+        // Skip if this item already has a file-id and was processed
+        if (fullMatch.includes('data-file-id=')) {
+            return fullMatch;
+        }
+
+        // Extract URL and title from <a> tag
+        const linkRegex = /<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/i;
+        const linkMatch = content.match(linkRegex);
+
+        if (linkMatch) {
+            const url = linkMatch[1];
+            const title = linkMatch[2].trim();
+
+            // Extract test date
+            const dateRegex = /\(test date:\s*([^\)]+)\)/i;
+            const dateMatch = content.match(dateRegex);
+            const testDate = dateMatch ? dateMatch[1].trim() : '';
+
+            // Extract description (after date, starting with –)
+            const descRegex = /\)\s*–\s*(.+)$/i;
+            const descMatch = content.match(descRegex);
+            const description = descMatch ? descMatch[1].trim() : '';
+
+            // Generate a pseudo-ID from the URL for manually added items
+            const pseudoId = 'manual-' + btoa(url).substring(0, 20);
+
+            items.push({
+                id: pseudoId,
+                title: title,
+                url: url,
+                testDate: testDate,
+                description: description,
+                isManual: true  // Flag for manually added items
+            });
+        }
+
+        return fullMatch;
+    });
+
     return items;
 }
 
@@ -871,13 +918,15 @@ function generateListHTML(items) {
     let html = '<ul id="coa-list">\n';
 
     items.forEach(item => {
-        // Sanitize all fields
+        // Sanitize text fields but NOT URLs
         const safeTitle = escapeHTML(item.title);
-        const safeUrl = escapeHTML(item.url);
+        const safeUrl = item.url; // URLs should not be HTML-escaped, just used as-is
         const safeDate = item.testDate ? escapeHTML(item.testDate) : '';
         const safeDesc = item.description ? escapeHTML(item.description) : '';
 
-        let li = `  <li data-file-id="${escapeHTML(item.id)}">`;
+        // Only add data-file-id if it's not a manually added item
+        const dataFileId = item.isManual ? '' : ` data-file-id="${escapeHTML(item.id)}"`;
+        let li = `  <li${dataFileId}>`;
         li += `<a href="${safeUrl}" target="_blank" rel="noopener">${safeTitle}</a>`;
 
         if (safeDate) {
@@ -959,28 +1008,53 @@ function showQRPreview(canvas, title) {
         previewSection.id = 'qrPreview';
         previewSection.className = 'bg-white rounded-lg shadow-md p-6 mb-6';
 
-        // Insert after main section
-        const mainSection = document.getElementById('mainSection');
-        mainSection.parentNode.insertBefore(previewSection, mainSection.nextSibling);
+        // Insert after status area to make it more visible
+        const statusArea = document.getElementById('statusArea');
+        statusArea.parentNode.insertBefore(previewSection, statusArea.nextSibling);
     }
 
-    // Update preview content
+    // Get the data URL for download
+    const dataURL = canvas.toDataURL('image/png');
+    const filename = `${sanitizeFilename(title)}_QR.png`;
+
+    // Update preview content with download button
     previewSection.innerHTML = `
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">QR Code Generated</h2>
-        <div class="flex flex-col items-center gap-4">
-            <div class="border-2 border-gray-300 rounded-lg p-4 bg-white">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">✅ QR Code Generated</h2>
+        <div class="flex flex-col md:flex-row gap-6 items-center">
+            <div class="border-2 border-gray-300 rounded-lg p-4 bg-white shadow-sm">
                 ${canvas.outerHTML}
             </div>
-            <p class="text-sm text-gray-600">
-                QR code for <strong>${escapeHTML(title)}</strong> has been downloaded as <code>${sanitizeFilename(title)}_QR.png</code>
-            </p>
-            <p class="text-xs text-gray-500">
-                Scan this QR code with a smartphone to open the PDF directly.
-            </p>
+            <div class="flex-1 space-y-4">
+                <div>
+                    <p class="text-lg font-semibold text-gray-900 mb-2">
+                        ${escapeHTML(title)}
+                    </p>
+                    <p class="text-sm text-gray-600 mb-1">
+                        ✓ QR code auto-downloaded as:
+                    </p>
+                    <p class="text-sm font-mono bg-gray-100 px-3 py-2 rounded">
+                        ${filename}
+                    </p>
+                </div>
+                <div class="pt-2">
+                    <button
+                        onclick="downloadQRCode('${dataURL.replace(/'/g, "\\'")}', '${filename.replace(/'/g, "\\'")}');"
+                        class="w-full px-6 py-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 font-medium transition text-base"
+                    >
+                        📥 Download QR Code Again
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 pt-2">
+                    💡 Scan this QR code with a smartphone to open the PDF directly.
+                </p>
+            </div>
         </div>
     `;
 
     previewSection.style.display = 'block';
+
+    // Scroll to the QR preview
+    previewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function sanitizeFilename(filename) {
@@ -989,6 +1063,16 @@ function sanitizeFilename(filename) {
         .replace(/[^a-z0-9]/gi, '_')
         .replace(/_+/g, '_')
         .replace(/^_|_$/g, '');
+}
+
+function downloadQRCode(dataURL, filename) {
+    // Manual download function for QR code
+    const a = document.createElement('a');
+    a.href = dataURL;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }
 
 // ============================================================================
