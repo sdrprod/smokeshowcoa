@@ -54,6 +54,7 @@ function attachEventListeners() {
     // Credentials
     document.getElementById('saveCredentials').addEventListener('click', saveCredentials);
     document.getElementById('testConnection').addEventListener('click', testConnection);
+    document.getElementById('credentialsHeader').addEventListener('click', toggleCredentialsSection);
 
     // Action selection
     document.getElementById('actionSelect').addEventListener('change', handleActionChange);
@@ -66,6 +67,26 @@ function attachEventListeners() {
     // Submit buttons
     document.getElementById('submitAction').addEventListener('click', handleSubmitAction);
     document.getElementById('submitDelete').addEventListener('click', handleSubmitDelete);
+}
+
+function toggleCredentialsSection() {
+    const content = document.getElementById('credentialsContent');
+    const toggle = document.getElementById('credentialsToggle');
+
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        toggle.textContent = '▼';
+    } else {
+        content.style.display = 'none';
+        toggle.textContent = '▶';
+    }
+}
+
+function collapseCredentialsSection() {
+    const content = document.getElementById('credentialsContent');
+    const toggle = document.getElementById('credentialsToggle');
+    content.style.display = 'none';
+    toggle.textContent = '▶';
 }
 
 // ============================================================================
@@ -117,6 +138,8 @@ async function testConnection() {
             showStatus('success', `Connected to ${result.data.shop.name}!`);
             document.getElementById('mainSection').style.display = 'block';
             document.getElementById('linkSection').style.display = 'block';
+            // Collapse credentials section after successful connection
+            collapseCredentialsSection();
         } else {
             throw new Error('Invalid response from Shopify API');
         }
@@ -466,6 +489,7 @@ async function loadExistingFiles(selectId) {
                                 url
                                 originalFileSize
                                 mimeType
+                                originalFileName
                             }
                         }
                     }
@@ -483,7 +507,8 @@ async function loadExistingFiles(selectId) {
 
         state.existingFiles = pdfFiles.map(file => ({
             id: file.id,
-            title: file.alt || 'Untitled',
+            title: file.alt || file.originalFileName || 'Untitled',
+            filename: file.originalFileName || '',
             url: file.url,
             createdAt: file.createdAt,
             testDate: '', // Will be extracted from page if available
@@ -498,7 +523,16 @@ async function loadExistingFiles(selectId) {
         state.existingFiles.forEach(file => {
             const option = document.createElement('option');
             option.value = file.id;
-            option.textContent = file.title;
+            // Show both title and filename if they're different
+            if (file.title && file.filename && file.title !== file.filename) {
+                option.textContent = `${file.title} (${file.filename})`;
+            } else if (file.title) {
+                option.textContent = file.title;
+            } else if (file.filename) {
+                option.textContent = file.filename;
+            } else {
+                option.textContent = 'Untitled';
+            }
             selectElement.appendChild(option);
         });
 
