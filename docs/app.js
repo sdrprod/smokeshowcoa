@@ -623,7 +623,31 @@ async function uploadFile(file, altText) {
         throw new Error(createFileResult.data.fileCreate.userErrors[0].message);
     }
 
-    return createFileResult.data.fileCreate.files[0];
+    const uploadedFile = createFileResult.data.fileCreate.files[0];
+
+    // If URL is not available yet, wait and refetch
+    if (!uploadedFile.url) {
+        console.log('URL not available immediately, waiting and refetching...');
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+
+        const refetchResult = await makeGraphQLRequest(`
+            {
+                node(id: "${uploadedFile.id}") {
+                    ... on GenericFile {
+                        id
+                        alt
+                        url
+                    }
+                }
+            }
+        `);
+
+        if (refetchResult.data.node && refetchResult.data.node.url) {
+            return refetchResult.data.node;
+        }
+    }
+
+    return uploadedFile;
 }
 
 async function replaceFile(fileId, newFile, altText) {
@@ -703,7 +727,31 @@ async function replaceFile(fileId, newFile, altText) {
         throw new Error(updateResult.data.fileUpdate.userErrors[0].message);
     }
 
-    return updateResult.data.fileUpdate.files[0];
+    const updatedFile = updateResult.data.fileUpdate.files[0];
+
+    // If URL is not available yet, wait and refetch
+    if (!updatedFile.url) {
+        console.log('URL not available immediately after update, waiting and refetching...');
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+
+        const refetchResult = await makeGraphQLRequest(`
+            {
+                node(id: "${updatedFile.id}") {
+                    ... on GenericFile {
+                        id
+                        alt
+                        url
+                    }
+                }
+            }
+        `);
+
+        if (refetchResult.data.node && refetchResult.data.node.url) {
+            return refetchResult.data.node;
+        }
+    }
+
+    return updatedFile;
 }
 
 async function deleteFile(fileId) {
