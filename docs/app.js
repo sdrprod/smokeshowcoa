@@ -825,9 +825,15 @@ async function updateCOAPage(action, coaData) {
 
     // Parse existing list items
     const listItems = parseListItems(listSection);
+    console.log('=== Update COA Page Debug ===');
+    console.log('Action:', action);
+    console.log('List section HTML:', listSection);
+    console.log('Parsed existing items:', listItems.length, 'items');
+    console.log('Existing items:', listItems.map(item => ({ title: item.title, id: item.id })));
 
     // Update list based on action
     if (action === 'add') {
+        console.log('Adding new item:', { title: coaData.title, id: coaData.id });
         listItems.push({
             id: coaData.id,
             title: coaData.title,
@@ -835,6 +841,7 @@ async function updateCOAPage(action, coaData) {
             testDate: coaData.testDate,
             description: coaData.description
         });
+        console.log('After adding, total items:', listItems.length);
     } else if (action === 'modify') {
         const index = listItems.findIndex(item => item.id === coaData.id);
         if (index !== -1) {
@@ -855,12 +862,16 @@ async function updateCOAPage(action, coaData) {
 
     // Sort alphabetically by title
     listItems.sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
+    console.log('After sorting:', listItems.map(item => item.title));
 
     // Generate new HTML
     const newListHTML = generateListHTML(listItems);
+    console.log('Generated HTML length:', newListHTML.length, 'characters');
+    console.log('Generated HTML:', newListHTML);
 
     // Combine back together
     const newHTML = beforeList + '\n' + newListHTML + '\n' + afterList;
+    console.log('=== End Update COA Page Debug ===');
 
     // Update page
     await makeRESTRequest(`pages/${CONFIG.PAGE_ID}.json`, 'PUT', {
