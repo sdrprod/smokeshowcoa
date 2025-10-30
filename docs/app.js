@@ -162,10 +162,15 @@ function handleActionChange(e) {
     const fileUploadLabel = document.getElementById('fileUploadLabel');
     const fileRequired = document.getElementById('fileRequired');
     const qrPreview = document.getElementById('qrPreview');
+    const viewQRLinkReplace = document.getElementById('viewQRLinkReplace');
+    const viewQRLinkDelete = document.getElementById('viewQRLinkDelete');
 
     // Hide all forms
     addModifyForm.style.display = 'none';
     deleteForm.style.display = 'none';
+    // Hide QR links
+    if (viewQRLinkReplace) viewQRLinkReplace.style.display = 'none';
+    if (viewQRLinkDelete) viewQRLinkDelete.style.display = 'none';
     // Only hide QR preview when user is changing actions, not when resetting after success
     // (QR preview should remain visible after successful operations)
     if (action !== '' && qrPreview) {
@@ -195,10 +200,13 @@ function handleActionChange(e) {
 
 async function handleExistingFileSelect(e) {
     const fileId = e.target.value;
+    const viewQRLink = document.getElementById('viewQRLinkReplace');
+
     if (!fileId) {
-        // If no file selected, hide QR preview
+        // If no file selected, hide QR preview and link
         const qrPreview = document.getElementById('qrPreview');
         if (qrPreview) qrPreview.style.display = 'none';
+        if (viewQRLink) viewQRLink.style.display = 'none';
         return;
     }
 
@@ -209,27 +217,34 @@ async function handleExistingFileSelect(e) {
         document.getElementById('coaDescription').value = file.description || '';
         updateCharCount();
 
-        // Generate and display QR code for the selected file (preview only, no auto-download)
+        // Generate and display QR code for the selected file (preview only, no auto-download or scroll)
         if (file.url) {
             await generateQRCode(file.url, file.title, false);
+            // Show the "View QR Code" link
+            if (viewQRLink) viewQRLink.style.display = 'block';
         }
     }
 }
 
 async function handleDeleteFileSelect(e) {
     const fileId = e.target.value;
+    const viewQRLink = document.getElementById('viewQRLinkDelete');
+
     if (!fileId) {
-        // If no file selected, hide QR preview
+        // If no file selected, hide QR preview and link
         const qrPreview = document.getElementById('qrPreview');
         if (qrPreview) qrPreview.style.display = 'none';
+        if (viewQRLink) viewQRLink.style.display = 'none';
         return;
     }
 
     const file = state.existingFiles.find(f => f.id === fileId);
     if (file) {
-        // Generate and display QR code for the selected file (preview only, no auto-download)
+        // Generate and display QR code for the selected file (preview only, no auto-download or scroll)
         if (file.url) {
             await generateQRCode(file.url, file.title, false);
+            // Show the "View QR Code" link
+            if (viewQRLink) viewQRLink.style.display = 'block';
         }
     }
 }
@@ -1131,7 +1146,7 @@ async function generateQRCode(url, title, autoDownload = true) {
 
         // Show preview
         console.log('Showing QR preview...');
-        showQRPreview(previewUrl, qrApiUrl, title, filename);
+        showQRPreview(previewUrl, qrApiUrl, title, filename, autoDownload);
         console.log('=== QR Code Generation Complete ===');
 
         // Store for later reference
@@ -1153,9 +1168,10 @@ async function generateQRCode(url, title, autoDownload = true) {
     }
 }
 
-function showQRPreview(imageUrl, apiUrl, title, filename) {
+function showQRPreview(imageUrl, apiUrl, title, filename, autoScroll = true) {
     console.log('showQRPreview called with title:', title);
     console.log('Image URL:', imageUrl);
+    console.log('Auto-scroll:', autoScroll);
 
     // Check if preview section exists, create if not
     let previewSection = document.getElementById('qrPreview');
@@ -1219,11 +1235,15 @@ function showQRPreview(imageUrl, apiUrl, title, filename) {
     previewSection.style.display = 'block';
     console.log('QR preview section made visible');
 
-    // Scroll to the QR preview
-    setTimeout(() => {
-        previewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        console.log('Scrolled to QR preview');
-    }, 100);
+    // Only auto-scroll for new uploads, not when browsing existing files
+    if (autoScroll) {
+        setTimeout(() => {
+            previewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            console.log('Scrolled to QR preview');
+        }, 100);
+    } else {
+        console.log('Skipping auto-scroll (user can manually scroll if desired)');
+    }
 }
 
 function sanitizeFilename(filename) {
