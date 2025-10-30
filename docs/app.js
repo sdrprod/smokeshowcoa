@@ -51,6 +51,10 @@ function initializeApp() {
 }
 
 function attachEventListeners() {
+    // Header navigation
+    document.getElementById('homeButton').addEventListener('click', handleHome);
+    document.getElementById('refreshButton').addEventListener('click', handleRefresh);
+
     // Credentials
     document.getElementById('saveCredentials').addEventListener('click', saveCredentials);
     document.getElementById('testConnection').addEventListener('click', testConnection);
@@ -153,6 +157,29 @@ async function testConnection() {
 // ============================================================================
 // UI HANDLERS
 // ============================================================================
+
+function handleHome() {
+    // Reset to initial state
+    clearForm();
+    document.getElementById('actionSelect').value = '';
+    handleActionChange({ target: { value: '' } });
+
+    // Hide status messages and QR preview
+    const statusArea = document.getElementById('statusArea');
+    if (statusArea) statusArea.innerHTML = '';
+    const qrPreview = document.getElementById('qrPreview');
+    if (qrPreview) qrPreview.style.display = 'none';
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    console.log('Navigated to Home - app reset');
+}
+
+function handleRefresh() {
+    // Simple page reload
+    window.location.reload();
+}
 
 function handleActionChange(e) {
     const action = e.target.value;

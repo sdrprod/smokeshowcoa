@@ -29,8 +29,32 @@
     <div class="max-w-4xl mx-auto">
         <!-- Header -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Update SSL Certificates of Analysis</h1>
-            <p class="text-gray-600">Manage COA PDFs and update your Shopify page automatically</p>
+            <div class="flex items-start justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">Update SSL Certificates of Analysis</h1>
+                    <p class="text-gray-600">Manage COA PDFs and update your Shopify page automatically</p>
+                </div>
+                <div class="flex gap-3 ml-4">
+                    <button
+                        id="homeButton"
+                        class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition"
+                        title="Home - Reset to start"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                    </button>
+                    <button
+                        id="refreshButton"
+                        class="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-md transition"
+                        title="Refresh - Reload current view"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Credentials Section -->
