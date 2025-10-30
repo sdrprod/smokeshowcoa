@@ -209,9 +209,9 @@ async function handleExistingFileSelect(e) {
         document.getElementById('coaDescription').value = file.description || '';
         updateCharCount();
 
-        // Generate and display QR code for the selected file
+        // Generate and display QR code for the selected file (preview only, no auto-download)
         if (file.url) {
-            await generateQRCode(file.url, file.title);
+            await generateQRCode(file.url, file.title, false);
         }
     }
 }
@@ -227,9 +227,9 @@ async function handleDeleteFileSelect(e) {
 
     const file = state.existingFiles.find(f => f.id === fileId);
     if (file) {
-        // Generate and display QR code for the selected file
+        // Generate and display QR code for the selected file (preview only, no auto-download)
         if (file.url) {
-            await generateQRCode(file.url, file.title);
+            await generateQRCode(file.url, file.title, false);
         }
     }
 }
@@ -1057,10 +1057,11 @@ function generateListHTML(items) {
 // QR CODE GENERATION (using API - no library needed)
 // ============================================================================
 
-async function generateQRCode(url, title) {
+async function generateQRCode(url, title, autoDownload = true) {
     console.log('=== QR Code Generation Started ===');
     console.log('URL:', url);
     console.log('Title:', title);
+    console.log('Auto-download:', autoDownload);
 
     try {
         // Use QR Server API to generate QR code (no library needed!)
@@ -1080,18 +1081,24 @@ async function generateQRCode(url, title) {
         const filename = `${sanitizeFilename(title)}_QR.png`;
         console.log('Filename:', filename);
 
-        // Download the QR code
-        console.log('Starting download...');
-        const downloadUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        console.log('Download triggered');
-        document.body.removeChild(a);
+        // Only auto-download if requested (e.g., when uploading new file)
+        if (autoDownload) {
+            console.log('Auto-downloading QR code...');
+            const downloadUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            console.log('Download triggered');
+            document.body.removeChild(a);
+            // Revoke download URL after delay
+            setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        } else {
+            console.log('Skipping auto-download (preview only)');
+        }
 
-        // Create a separate blob URL for preview (don't revoke the download one yet)
+        // Create a separate blob URL for preview
         const previewUrl = URL.createObjectURL(blob);
 
         // Show preview
@@ -1106,9 +1113,6 @@ async function generateQRCode(url, title) {
             imageUrl: qrApiUrl,
             filename
         };
-
-        // Revoke download URL after delay
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
 
         return true;
 
